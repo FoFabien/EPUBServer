@@ -1,5 +1,5 @@
 # EPUBServer
-Simple Python Server to read epub files from a device (computer, phone, etc...) on the same network using a web browser
+Simple Python Server to read epub files from a device (computer, phone, etc...) on the same network using a web browser.  
 
 ### Installation
 1. [Python](https://www.python.org/downloads/) must be installed on the device acting like the server. It has been tested with Python 3.11.
@@ -19,3 +19,8 @@ Here's a list of the variables you'll find inside:
 - `loaded_book_limit`: **4** is the default value. The maximum number of books loaded at the same time in memory.  
 - `bookmarks`: This is automatically managed by the server, you shouldn't have to touch it. It's used to memorize the last viewed part of an epub, for a quick resume.
   
+### Disclaimer
+This application was designed to be used at home, in a safe local environment.  
+Little consideration has been put towards security, I wouldn't recommend using it over the Internet.  
+If you do, at least set a password.  
+If you have the know-how, you can also try to add HTTPS support to it.  
