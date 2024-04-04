@@ -47,9 +47,9 @@ class EPUBServer():
         </body>
     </html>
     """
-    IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_]+\.(jpg|png|jpeg))')
+    IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.0")
+        print("EPUBServer v1.1")
         self.password = None
         self.folder = "books"
         self.loaded_book_limit = 4
