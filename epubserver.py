@@ -6,6 +6,7 @@ import ebooklib
 from ebooklib import epub
 import re
 import mimetypes
+import traceback
 import json
 
 class EPUBServer():
@@ -49,7 +50,7 @@ class EPUBServer():
     """
     IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.1")
+        print("EPUBServer v1.2")
         self.password = None
         self.folder = "books"
         self.loaded_book_limit = 4
@@ -88,7 +89,8 @@ class EPUBServer():
             with open('settings.json', mode='w', encoding='utf-8') as outfile:
                 json.dump({'password': self.password, 'folder': self.folder, 'loaded_book_limit': self.loaded_book_limit, 'bookmarks': self.bookmarks}, outfile, ensure_ascii=False)
         except Exception as e:
-            print("Failed to update settings.json:", e)
+            print("Failed to update settings.json:")
+            print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
 
     def run(self):
         try: web.run_app(self.app, port=8000)
@@ -125,7 +127,8 @@ class EPUBServer():
                 with open("favicon.ico", 'rb') as f:
                     self.favicon = f.read()
             except Exception as e:
-                print("Failed to load favicon:", e)
+                print("Failed to load favicon:")
+                print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
                 raise web.HTTPNotFound()
         return web.Response(body=self.favicon, content_type='image/x-icon')
 
@@ -143,6 +146,7 @@ class EPUBServer():
             spine = book.spine
             self.loaded[file] = {'pages':[], 'img':{}, 'index':{}}
             for s in spine:
+                if s[0] is None: continue
                 i = book.get_item_with_id(s[0])
                 if i.get_type() == ebooklib.ITEM_DOCUMENT:
                     self.loaded[file]['index'][s[0]] = len(self.loaded[file]['pages'])
@@ -153,7 +157,7 @@ class EPUBServer():
                 self.loaded[file]['img'][i.get_name().split('/')[-1]] = i.get_content()
         except Exception as e:
             print("Couldn't load book:", file)
-            print("Exception:", e)
+            print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
             raise web.HTTPInternalServerError()
 
     def formatEpub(self, file, content):
