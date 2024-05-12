@@ -1,4 +1,5 @@
 from aiohttp import web
+import asyncio
 from urllib.parse import quote
 from os import listdir
 from os.path import isfile, join
@@ -10,6 +11,7 @@ import traceback
 import json
 
 class EPUBServer():
+    # HTML base page
     BASE_HTML = """
     <!DOCTYPE html>
     <html>
@@ -48,23 +50,27 @@ class EPUBServer():
         </body>
     </html>
     """
+    # used to detect img links
     IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.2")
-        self.password = None
-        self.folder = "books"
-        self.loaded_book_limit = 4
-        self.modified = False
-        self.bookmarks = {}
-        self.load()
-        self.favicon = None
-        self.loaded = {}
+        print("EPUBServer v1.3")
+        self.password = None # server password
+        self.folder = "books" # server folder
+        self.loaded_book_limit = 4 # book limit in memory
+        self.modified = False # save data pending flag
+        self.bookmarks = {} # bookmark list
+        self.load() # loading data...
+        self.loaded = {} # loaded book
+        self.favicon = None # will contain the server favicon
+        self.autosave_task = None # will contain the autosave task
         if self.password is not None:
             print("Server password is:", self.password)
             print("Add to your request url: ?pass={}".format(quote(self.password)))
         if self.folder.endswith('/') or self.folder.endswith('\\'):
             self.folder = self.folder[:-1]
         self.app = web.Application()
+        self.app.on_startup.append(self.init_autosave)
+        self.app.on_cleanup.append(self.stop_autosave)
         self.app.add_routes([
                 web.get('/', self.main),
                 web.get('/favicon.ico', self.icon),
@@ -72,6 +78,7 @@ class EPUBServer():
                 web.get('/asset', self.asset)
         ])
 
+    # save data ========================================================================
     def load(self):
         try:
             with open('settings.json', mode='r', encoding='utf-8') as f:
@@ -91,7 +98,22 @@ class EPUBServer():
         except Exception as e:
             print("Failed to update settings.json:")
             print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+    
+    async def autosave(self):
+        try:
+            while True:
+                await asyncio.sleep(120)
+                self.save()
+        except asyncio.CancelledError:
+            pass
 
+    async def init_autosave(self, app):
+        self.autosave_task = asyncio.create_task(self.autosave())
+
+    async def stop_autosave(self, app):
+        self.autosave_task.cancel()
+
+    # entry point ========================================================================
     def run(self):
         try: web.run_app(self.app, port=8000)
         except: pass
@@ -101,6 +123,7 @@ class EPUBServer():
         if not (self.password is None or request.rel_url.query.get('pass', '') == self.password):
             raise web.HTTPInternalServerError()
 
+    # handlers ========================================================================
     async def main(self, request):
         self.permitted(request)
         try: fs = [f for f in listdir(self.folder) if (isfile(join(self.folder, f)) and f.endswith('.epub'))]
@@ -132,7 +155,7 @@ class EPUBServer():
                 raise web.HTTPNotFound()
         return web.Response(body=self.favicon, content_type='image/x-icon')
 
-    def loadEpub(self, file):
+    def loadEpub(self, file): # load book into memory
         try:
             book = epub.read_epub(self.folder + '/' + file)
             # clear cache
@@ -160,7 +183,7 @@ class EPUBServer():
             print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
             raise web.HTTPInternalServerError()
 
-    def formatEpub(self, file, content):
+    def formatEpub(self, file, content): # format epub content
         # remove html style
         a = 0
         b = 0
@@ -228,7 +251,7 @@ class EPUBServer():
                 content = content.replace(i[1], '/asset?file={}&path={}'.format(quote(file), quote(i[1].split('/')[-1])))
         return content
 
-    def generateHeaderFooter(self, file, page):
+    def generateHeaderFooter(self, file, page): # make page header/footer
         footer = '<div class="elem">'
         if page > 0: footer += '<a href="/read?file={}&page={}{}">Previous</a> # '.format(quote(file), page-1, '' if self.password is None else "&pass={}".format(quote(self.password)))
         footer += '<a href="/{}">Back</a>'.format('' if self.password is None else "pass={}".format(quote(self.password)))
