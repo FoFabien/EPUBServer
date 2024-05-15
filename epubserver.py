@@ -184,22 +184,30 @@ class EPUBServer():
             raise web.HTTPInternalServerError()
 
     def formatEpub(self, file, content): # format epub content. NOTE: Don't want to use/include beautifulsoup
-        # remove html basic tags
-        for t in ["body", "div"]:
-            a = 0
-            b = 0
-            while True:
-                a = content.find("<"+t, b)
-                if a == -1:
-                    break
+        # remove html body tags
+        a = 0
+        b = 0
+        while True:
+            a = content.find("<body", b)
+            if a == -1:
+                break
+            else:
+                b = content.find(">", a+1)
+                if b == -1:
+                    pass
                 else:
-                    b = content.find(">", a+1)
-                    if b == -1:
-                        pass
-                    else:
-                        content = content[:a] + content[b+1:]
-                        b = a
-            content = content.replace("</"+t+">", "")
+                    content = content[:a] + content[b+1:]
+                    b = a
+        content = content.replace("</body>", "")
+        # tweak badly formed div
+        divc = content.count("<div") - content.count("</div>")
+        while divc > 0:
+            content += "\n</div>"
+            divc -= 1
+        while divc < 0:
+            content += "<div>\n"
+            divc += 1
+        
         # remove html style
         a = 0
         b = 0
