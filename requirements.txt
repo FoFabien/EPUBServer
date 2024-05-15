@@ -1,0 +1,2 @@
+EbookLib>=0.18
+aiohttp>=3.8.3
