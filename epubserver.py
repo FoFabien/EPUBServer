@@ -53,7 +53,7 @@ class EPUBServer():
     # used to detect img links
     IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.3")
+        print("EPUBServer v1.4")
         self.password = None # server password
         self.folder = "books" # server folder
         self.loaded_book_limit = 4 # book limit in memory
@@ -183,7 +183,23 @@ class EPUBServer():
             print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
             raise web.HTTPInternalServerError()
 
-    def formatEpub(self, file, content): # format epub content
+    def formatEpub(self, file, content): # format epub content. NOTE: Don't want to use/include beautifulsoup
+        # remove html basic tags
+        for t in ["body", "div"]:
+            a = 0
+            b = 0
+            while True:
+                a = content.find("<"+t, b)
+                if a == -1:
+                    break
+                else:
+                    b = content.find(">", a+1)
+                    if b == -1:
+                        pass
+                    else:
+                        content = content[:a] + content[b+1:]
+                        b = a
+            content = content.replace("</"+t+">", "")
         # remove html style
         a = 0
         b = 0
