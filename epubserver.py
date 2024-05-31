@@ -43,9 +43,37 @@ class EPUBServer():
                     background-color: #b8b8b8;
                     margin: 2px;
                 }
+                #system-clock
+                {
+                    color: #121212;
+                    position:sticky;
+                    top:5px;
+                    padding-left: 90%;
+                    z-index: -1;
+                    font-size: 140%;
+                    margin: -10px;
+                    font-family: monospace, monospace;
+                }
             </style>
         </head>
-        <body>
+        <script>
+            var sc = null;
+            var stoggle = false;
+            function init()
+            {
+                sc = document.getElementById("system-clock");
+                setInterval(clock, 500);
+                clock();
+            }
+            function clock()
+            {
+                const now = new Date();
+                stoggle = !stoggle;
+                sc.innerHTML = now.getHours() + (stoggle ? ":" : " ") + now.getMinutes();
+            }
+        </script>
+        <body onload="init()">
+            <div id="system-clock">.</div>
             BODY
         </body>
     </html>
@@ -53,7 +81,7 @@ class EPUBServer():
     # used to detect img links
     IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.4")
+        print("EPUBServer v1.5")
         self.password = None # server password
         self.folder = "books" # server folder
         self.loaded_book_limit = 4 # book limit in memory
