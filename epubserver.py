@@ -48,7 +48,8 @@ class EPUBServer():
                     color: #121212;
                     position:sticky;
                     top:5px;
-                    padding-left: 90%;
+                    padding-left: 85%;
+                    width: 10%;
                     z-index: -1;
                     font-size: 140%;
                     margin: -10px;
@@ -58,18 +59,21 @@ class EPUBServer():
         </head>
         <script>
             var sc = null;
-            var stoggle = false;
+            var hour = 0;
+            var minu = 0;
             function init()
             {
                 sc = document.getElementById("system-clock");
-                setInterval(clock, 500);
+                setInterval(clock, 1000);
                 clock();
             }
             function clock()
             {
                 const now = new Date();
-                stoggle = !stoggle;
-                sc.innerHTML = now.getHours() + (stoggle ? ":" : " ") + now.getMinutes();
+                if(now.getHours() != hour || now.getMinutes() != minu)
+                    sc.innerHTML = JSON.stringify(now.getHours()).padStart(2, "0") + ":" + JSON.stringify(now.getMinutes()).padStart(2, "0");
+                hour = now.getHours();
+                minu = now.getMinutes();
             }
         </script>
         <body onload="init()">
