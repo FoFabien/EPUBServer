@@ -5,6 +5,7 @@ from os import listdir
 from os.path import isfile, join
 import ebooklib
 from ebooklib import epub
+import zipfile
 import re
 import mimetypes
 import traceback
@@ -82,10 +83,12 @@ class EPUBServer():
         </body>
     </html>
     """
+    EPUB_TYPE = 0
+    ARCHIVE_TYPE = 1
     # used to detect img links
     IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.5")
+        print("EPUBServer v1.6")
         self.password = None # server password
         self.folder = "books" # server folder
         self.loaded_book_limit = 4 # book limit in memory
@@ -158,7 +161,7 @@ class EPUBServer():
     # handlers ========================================================================
     async def main(self, request):
         self.permitted(request)
-        try: fs = [f for f in listdir(self.folder) if (isfile(join(self.folder, f)) and f.endswith('.epub'))]
+        try: fs = [f for f in listdir(self.folder) if (isfile(join(self.folder, f)) and "." in f and f.split('.')[-1] in ["epub", "zip", "cbz"])]
         except: fs = []
         blist = ""
         if len(fs) == 0:
@@ -168,7 +171,7 @@ class EPUBServer():
             for f in fs:
                 if f in self.bookmarks:
                     bookmarks[f] = self.bookmarks[f]
-                blist += '<a href="/read?file={}{}">{}</a><br>'.format(quote(f), '' if self.password is None else "&pass={}".format(quote(self.password)), f.replace('.epub', ''))
+                blist += '- <a href="/read?file={}{}">{}</a><br>'.format(quote(f), '' if self.password is None else "&pass={}".format(quote(self.password)), f.replace('.epub', ''))
             blist = '<div class="elem">' + blist + '</div>'
             if len(bookmarks) != len(self.bookmarks):
                 self.bookmarks = bookmarks
@@ -187,19 +190,22 @@ class EPUBServer():
                 raise web.HTTPNotFound()
         return web.Response(body=self.favicon, content_type='image/x-icon')
 
+    def clean_book_cache(self):
+        # clear cache
+        keys = list(self.loaded.keys())
+        if len(keys) >= self.loaded_book_limit:
+            n_keys = keys[-self.loaded_book_limit:]
+            for k in keys:
+                if k not in n_keys:
+                    self.loaded.pop(k, None)
+
     def loadEpub(self, file): # load book into memory
         try:
             book = epub.read_epub(self.folder + '/' + file)
-            # clear cache
-            keys = list(self.loaded.keys())
-            if len(keys) >= self.loaded_book_limit:
-                n_keys = keys[-self.loaded_book_limit:]
-                for k in keys:
-                    if k not in n_keys:
-                        self.loaded.pop(k, None)
+            self.clean_book_cache()
             # load
             spine = book.spine
-            self.loaded[file] = {'pages':[], 'img':{}, 'index':{}}
+            self.loaded[file] = {'type':self.EPUB_TYPE, 'pages':[], 'img':{}, 'index':{}}
             for s in spine:
                 if s[0] is None: continue
                 i = book.get_item_with_id(s[0])
@@ -307,6 +313,34 @@ class EPUBServer():
                 content = content.replace(i[1], '/asset?file={}&path={}'.format(quote(file), quote(i[1].split('/')[-1])))
         return content
 
+    def loadArchiveContent(self, file): # load zip archive file list
+        try:
+            self.clean_book_cache()
+            with zipfile.ZipFile(self.folder + '/' + file, mode='r') as z:
+                namelist = z.namelist()
+                self.loaded[file] = {'type':self.ARCHIVE_TYPE, 'pages':namelist, 'img':{}, 'index':{}}
+        except Exception as e:
+            print("Couldn't load archive:", file)
+            print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+            raise web.HTTPInternalServerError()
+
+    def loadArchiveImage(self, file, img): # load one image
+        try:
+            keys = list(self.loaded[file]['img'].keys())
+            if img not in keys:
+                if len(keys) >= 10:
+                    keys = keys[5:] # keep 5 latest loaded images
+                    self.loaded[file]['img'] = {k:self.loaded[file]['img'][k] for k in keys}
+                with zipfile.ZipFile(self.folder + '/' + file, mode='r') as z:
+                    with z.open(img) as f:
+                        self.loaded[file]['img'][img] = f.read()
+            else:
+                self.loaded[file]['img'][img] = self.loaded[file]['img'].pop(img) # move at end (to be considered most recently used)
+        except Exception as e:
+            print("Couldn't load archive content:", file, img)
+            print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+            raise web.HTTPInternalServerError()
+
     def generateHeaderFooter(self, file, page): # make page header/footer
         footer = '<div class="elem">'
         if page > 0: footer += '<a href="/read?file={}&page={}{}">Previous</a> # '.format(quote(file), page-1, '' if self.password is None else "&pass={}".format(quote(self.password)))
@@ -324,11 +358,21 @@ class EPUBServer():
         if file is None:
             raise web.HTTPNotFound()
         if file not in self.loaded:
-            self.loadEpub(file)
+            ext = file.split('.')[-1]
+            match ext:
+                case "epub":
+                    self.loadEpub(file)
+                case "zip"|"cbz":
+                    self.loadArchiveContent(file)
         
-        if not isinstance(self.loaded[file]['pages'][page], str):
-            self.loaded[file]['pages'][page] = self.formatEpub(file, self.loaded[file]['pages'][page].get_body_content().decode("utf-8"))
-        content = self.loaded[file]['pages'][page]
+        match self.loaded[file]["type"]:
+            case self.EPUB_TYPE:
+                if not isinstance(self.loaded[file]['pages'][page], str):
+                    self.loaded[file]['pages'][page] = self.formatEpub(file, self.loaded[file]['pages'][page].get_body_content().decode("utf-8"))
+                content = self.loaded[file]['pages'][page]
+            case self.ARCHIVE_TYPE:
+                self.loadArchiveImage(file, self.loaded[file]['pages'][page])
+                content = '<img src="/asset?file={}&path={}">'.format(quote(file), quote(self.loaded[file]['pages'][page]))
         footer = self.generateHeaderFooter(file, page)
         
         return web.Response(text=self.BASE_HTML.replace('BODY', footer + '<div class="epub_content">' + content + '</div>' + footer), content_type='text/html')
