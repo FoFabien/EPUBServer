@@ -1,5 +1,7 @@
 # EPUBServer
-Simple Python Server to read epub files from a device (computer, phone, etc...) on the same network using a web browser.  
+Simple Python Server to read EPUB files from any device (computer, phone, etc...) on the same network using a web browser.  
+It also supports CBZ and ZIP files containing images.  
+PDF are NOT supported.
 
 ### Installation
 1. [Python](https://www.python.org/downloads/) must be installed on the device acting like the server. It has been tested with Python 3.11.
@@ -8,7 +10,7 @@ Simple Python Server to read epub files from a device (computer, phone, etc...) 
 ### Usage
 Double click `epubserver.py` or start it via a command prompt or terminal using `python epubserver.py`.  
 To stop the server, do a `CTRL+C`.  
-Make a folder named `books` alongside the file and put some `.epub` files in it.  
+Make a folder named `books` alongside the file and put your `.epub`, `.cbz` and `.zip` files in it. Sub-folder aren't currently supported.  
 Then go to `http://localhost:8000` if you're on the same machine (replace localhost by its IP otherwise).  
 
 ### Settings
@@ -21,6 +23,7 @@ Here's a list of the variables you'll find inside:
   
 ### Disclaimer
 This application was designed to be used at home, in a safe local environment.  
-Little consideration has been put towards security, I wouldn't recommend using it over the Internet.  
-If you do, at least set a password.  
+Little consideration has been put towards security, I wouldn't recommend using it over the Internet. Keep your usage for a local or your home private network.  
+If you do, at least set a password but keep in mind the password isn't transmitted in a secure-way either.  
 If you have the know-how, you can also try to add HTTPS support to it.  
+The above statements are subject to change in future versions.  
