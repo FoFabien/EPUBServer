@@ -1,6 +1,6 @@
 from aiohttp import web
 import asyncio
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from os import listdir
 from os.path import isfile, join
 import ebooklib
@@ -86,9 +86,9 @@ class EPUBServer():
     EPUB_TYPE = 0
     ARCHIVE_TYPE = 1
     # used to detect img links
-    IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_]+\.(jpg|png|jpeg|gif))')
+    IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_%]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.6")
+        print("EPUBServer v1.7")
         self.password = None # server password
         self.folder = "books" # server folder
         self.loaded_book_limit = 4 # book limit in memory
@@ -308,9 +308,9 @@ class EPUBServer():
             if i[0] == 'xlink:href':
                 a = content.find('<svg')
                 b = content.find('</svg>')
-                content = content[:a] + '<img src="/asset?file={}&path={}">'.format(quote(file), quote(i[1].split('/')[-1])) + content[b+6:]
+                content = content[:a] + '<img src="/asset?file={}&path={}">'.format(quote(file), quote(unquote(i[1].split('/')[-1]))) + content[b+6:]
             else:
-                content = content.replace(i[1], '/asset?file={}&path={}'.format(quote(file), quote(i[1].split('/')[-1])))
+                content = content.replace(i[1], '/asset?file={}&path={}'.format(quote(file), quote(unquote(i[1].split('/')[-1]))))
         return content
 
     def loadArchiveContent(self, file): # load zip archive file list
