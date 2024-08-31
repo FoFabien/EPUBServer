@@ -88,7 +88,7 @@ class EPUBServer():
     # used to detect img links
     IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_%]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.7")
+        print("EPUBServer v1.8")
         self.password = None # server password
         self.folder = "books" # server folder
         self.loaded_book_limit = 4 # book limit in memory
@@ -341,11 +341,11 @@ class EPUBServer():
             print("".join(traceback.format_exception(type(e), e, e.__traceback__)))
             raise web.HTTPInternalServerError()
 
-    def generateHeaderFooter(self, file, page): # make page header/footer
+    def generateHeaderFooter(self, file, page, count): # make page header/footer
         footer = '<div class="elem">'
         if page > 0: footer += '<a href="/read?file={}&page={}{}">Previous</a> # '.format(quote(file), page-1, '' if self.password is None else "&pass={}".format(quote(self.password)))
-        footer += '<a href="/{}">Back</a>'.format('' if self.password is None else "pass={}".format(quote(self.password)))
-        if page < len(self.loaded[file]['pages']) - 1: footer += ' # <a href="/read?file={}&page={}{}">Next</a>'.format(quote(file), page+1, '' if self.password is None else "&pass={}".format(quote(self.password)))
+        footer += '<a href="/{}">Back</a> # {} / {}'.format('' if self.password is None else "pass={}".format(quote(self.password)), page+1, count)
+        if page < count - 1: footer += ' # <a href="/read?file={}&page={}{}">Next</a>'.format(quote(file), page+1, '' if self.password is None else "&pass={}".format(quote(self.password)))
         footer += '</div>'
         return footer
 
@@ -373,7 +373,7 @@ class EPUBServer():
             case self.ARCHIVE_TYPE:
                 self.loadArchiveImage(file, self.loaded[file]['pages'][page])
                 content = '<img src="/asset?file={}&path={}">'.format(quote(file), quote(self.loaded[file]['pages'][page]))
-        footer = self.generateHeaderFooter(file, page)
+        footer = self.generateHeaderFooter(file, page, len(self.loaded[file]['pages']))
         
         return web.Response(text=self.BASE_HTML.replace('BODY', footer + '<div class="epub_content">' + content + '</div>' + footer), content_type='text/html')
 
