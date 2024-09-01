@@ -88,7 +88,7 @@ class EPUBServer():
     # used to detect img links
     IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_%]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.8")
+        print("EPUBServer v1.9")
         self.password = None # server password
         self.folder = "books" # server folder
         self.loaded_book_limit = 4 # book limit in memory
@@ -238,7 +238,23 @@ class EPUBServer():
                     b = a
         content = content.replace("</body>", "")
         # tweak badly formed div
-        divc = content.count("<div") - content.count("</div>")
+        divc = 0
+        a = 0
+        b = 0
+        while True: # count <div> while removing <div/>
+            a = content.find("<div", b)
+            if a == -1:
+                break
+            else:
+                b = content.find(">", a+1)
+                if b == -1:
+                    break
+                else:
+                    if content[b-1] != "/": divc += 1
+                    else:
+                        content = content[:a] + content[b+1:]
+                        b = a
+        divc -= content.count("</div>")
         while divc > 0:
             content += "\n</div>"
             divc -= 1
