@@ -26,9 +26,10 @@ class EPUBServer():
                     border: 2px solid black;
                     display: table;
                     background-color: #b8b8b8;
-                    margin: 10px 50px 10px;
+                    margin: 10px 10px 10px;
                     padding: 10px 10px 10px 10px;
                     font-size: 180%;
+                    border-radius: 6px;
                 }
                 .epub_content
                 {
@@ -55,6 +56,10 @@ class EPUBServer():
                     font-size: 140%;
                     margin: -10px;
                     font-family: monospace, monospace;
+                }
+                a
+                {
+                    text-decoration: none
                 }
             </style>
         </head>
@@ -88,7 +93,7 @@ class EPUBServer():
     # used to detect img links
     IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_%]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.9")
+        print("EPUBServer v1.10")
         self.password = None # server password
         self.folder = "books" # server folder
         self.loaded_book_limit = 4 # book limit in memory
@@ -171,7 +176,7 @@ class EPUBServer():
             for f in fs:
                 if f in self.bookmarks:
                     bookmarks[f] = self.bookmarks[f]
-                blist += '- <a href="/read?file={}{}">{}</a><br>'.format(quote(f), '' if self.password is None else "&pass={}".format(quote(self.password)), f.replace('.epub', ''))
+                blist += '• <a href="/read?file={}{}">{}</a><br>'.format(quote(f), '' if self.password is None else "&pass={}".format(quote(self.password)), f.replace('.epub', ''))
             blist = '<div class="elem">' + blist + '</div>'
             if len(bookmarks) != len(self.bookmarks):
                 self.bookmarks = bookmarks
@@ -359,9 +364,9 @@ class EPUBServer():
 
     def generateHeaderFooter(self, file, page, count): # make page header/footer
         footer = '<div class="elem">'
-        if page > 0: footer += '<a href="/read?file={}&page={}{}">Previous</a> # '.format(quote(file), page-1, '' if self.password is None else "&pass={}".format(quote(self.password)))
-        footer += '<a href="/{}">Back</a> # {} / {}'.format('' if self.password is None else "pass={}".format(quote(self.password)), page+1, count)
-        if page < count - 1: footer += ' # <a href="/read?file={}&page={}{}">Next</a>'.format(quote(file), page+1, '' if self.password is None else "&pass={}".format(quote(self.password)))
+        if page > 0: footer += '<a href="/read?file={}&page={}{}">◄</a> '.format(quote(file), page-1, '' if self.password is None else "&pass={}".format(quote(self.password)))
+        footer += '{} <a href="/{}">▲</a> {} '.format(page+1, '' if self.password is None else "pass={}".format(quote(self.password)), count)
+        if page < count - 1: footer += ' <a href="/read?file={}&page={}{}">►</a>'.format(quote(file), page+1, '' if self.password is None else "&pass={}".format(quote(self.password)))
         footer += '</div>'
         return footer
 
