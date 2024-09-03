@@ -93,7 +93,7 @@ class EPUBServer():
     # used to detect img links
     IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_%]+\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.10")
+        print("EPUBServer v1.11")
         self.password = None # server password
         self.folder = "books" # server folder
         self.loaded_book_limit = 4 # book limit in memory
@@ -363,12 +363,9 @@ class EPUBServer():
             raise web.HTTPInternalServerError()
 
     def generateHeaderFooter(self, file, page, count): # make page header/footer
-        footer = '<div class="elem">'
-        if page > 0: footer += '<a href="/read?file={}&page={}{}">◄</a> '.format(quote(file), page-1, '' if self.password is None else "&pass={}".format(quote(self.password)))
-        footer += '{} <a href="/{}">▲</a> {} '.format(page+1, '' if self.password is None else "pass={}".format(quote(self.password)), count)
-        if page < count - 1: footer += ' <a href="/read?file={}&page={}{}">►</a>'.format(quote(file), page+1, '' if self.password is None else "&pass={}".format(quote(self.password)))
-        footer += '</div>'
-        return footer
+        back_page = '<a href="/read?file={}&page={}{}">'.format(quote(file), page-1, '' if self.password is None else "&pass={}".format(quote(self.password))) if page > 0 else ''
+        next_page = '<a href="/read?file={}&page={}{}">'.format(quote(file), page+1, '' if self.password is None else "&pass={}".format(quote(self.password))) if page < count - 1 else ''
+        return '<div class="elem">{}◄{} {} <a href="/{}">▲</a> {} {}►{}</div>'.format(back_page, '</a>' if back_page != '' else back_page, page+1, '' if self.password is None else "pass={}".format(quote(self.password)), count, next_page, '</a>' if next_page != '' else next_page)
 
     async def read(self, request):
         self.permitted(request)
