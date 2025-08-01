@@ -13,11 +13,7 @@ import json
 
 class EPUBServer():
     # HTML base page
-    BASE_HTML = """
-    <!DOCTYPE html>
-    <html>
-        <head>
-            <title>EPUB Server</title>
+    CSS = """
             <style>
                 body {
                     background-color: #282c2e
@@ -26,15 +22,31 @@ class EPUBServer():
                     border: 2px solid black;
                     display: table;
                     background-color: #b8b8b8;
-                    margin: 10px 10px 10px;
-                    padding: 10px 10px 10px 10px;
+                    margin: 0px;
+                    padding: 1vh 1vw 1vh 1vw;
                     font-size: 180%;
                     border-radius: 6px;
+                }
+                .footer {
+                    font-size: 4vh;
+                    margin-left: MARGINvw;
+                }
+                #iframe-parent {
+                }
+                iframe {
+                    display: block;
+                    width:100%;
+                    height:100%;
+                    border: none;
                 }
                 .epub_content
                 {
                     color: #c7c7c7;
-                    font-size: 150%
+                    font-size: 150%;
+                    width:100%;
+                    height:calc(100%-12vh);
+                    position: absolute; top: 10vh; left: 0; right: 0; bottom: 0;
+                    overflow:scroll
                 }
                 img
                 {
@@ -48,20 +60,27 @@ class EPUBServer():
                 #system-clock
                 {
                     color: #121212;
-                    position:sticky;
+                    position:absolute;
                     top:5px;
-                    padding-left: 85%;
-                    width: 10%;
+                    padding-left: 80vw;
+                    width: 10vw;
                     z-index: -1;
-                    font-size: 140%;
-                    margin: -10px;
+                    font-size: 4vh;
+                    margin: -1vw;
                     font-family: monospace, monospace;
                 }
                 a
                 {
                     text-decoration: none
                 }
-            </style>
+            </style>"""
+    
+    
+    BASE_HTML = """
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>EPUB Server</title>""" + CSS + """
         </head>
         <script>
             var sc = null;
@@ -90,10 +109,12 @@ class EPUBServer():
     """
     EPUB_TYPE = 0
     ARCHIVE_TYPE = 1
+    
+    CSS_MARGIN_BASE = 30
     # used to detect img links
-    IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\/\-\.\_%]+\.(jpg|png|jpeg|gif))')
+    IMGRE = re.compile('(src|xlink:href)="([a-zA-Z0-9\\/\\-\\.\\_%]+\\.(jpg|png|jpeg|gif))')
     def __init__(self):
-        print("EPUBServer v1.11")
+        print("EPUBServer v1.12")
         self.password = None # server password
         self.folder = "books" # server folder
         self.loaded_book_limit = 4 # book limit in memory
@@ -242,6 +263,20 @@ class EPUBServer():
                     content = content[:a] + content[b+1:]
                     b = a
         content = content.replace("</body>", "")
+        # remove script tags
+        a = 0
+        b = 0
+        while True:
+            a = content.find("<script", b)
+            if a == -1:
+                break
+            else:
+                b = content.find("</script>", a+1)
+                if b == -1:
+                    pass
+                else:
+                    content = content[:a] + content[b+len("</script>"):]
+                    b = a
         # tweak badly formed div
         divc = 0
         a = 0
@@ -266,7 +301,6 @@ class EPUBServer():
         while divc < 0:
             content += "<div>\n"
             divc += 1
-        
         # remove html style
         a = 0
         b = 0
@@ -365,7 +399,7 @@ class EPUBServer():
     def generateHeaderFooter(self, file, page, count): # make page header/footer
         back_page = '<a href="/read?file={}&page={}{}">'.format(quote(file), page-1, '' if self.password is None else "&pass={}".format(quote(self.password))) if page > 0 else ''
         next_page = '<a href="/read?file={}&page={}{}">'.format(quote(file), page+1, '' if self.password is None else "&pass={}".format(quote(self.password))) if page < count - 1 else ''
-        return '<div class="elem">{}◄{} {} <a href="/{}">▲</a> {} {}►{}</div>'.format(back_page, '</a>' if back_page != '' else back_page, page+1, '' if self.password is None else "pass={}".format(quote(self.password)), count, next_page, '</a>' if next_page != '' else next_page)
+        return '<div class="elem footer">{}◄{} {} <a href="/{}">▲</a> {} {}►{}</div>'.format(back_page, '</a>' if back_page != '' else back_page, page+1, '' if self.password is None else "pass={}".format(quote(self.password)), count, next_page, '</a>' if next_page != '' else next_page)
 
     async def read(self, request):
         self.permitted(request)
@@ -383,17 +417,17 @@ class EPUBServer():
                 case "zip"|"cbz":
                     self.loadArchiveContent(file)
         
+        footer = self.generateHeaderFooter(file, page, len(self.loaded[file]['pages']))
         match self.loaded[file]["type"]:
             case self.EPUB_TYPE:
                 if not isinstance(self.loaded[file]['pages'][page], str):
                     self.loaded[file]['pages'][page] = self.formatEpub(file, self.loaded[file]['pages'][page].get_body_content().decode("utf-8"))
-                content = self.loaded[file]['pages'][page]
+                content = '<div class="epub_content">' + self.loaded[file]['pages'][page] + '</div>'
+                return web.Response(text=self.BASE_HTML.replace('BODY', footer + content).replace('MARGIN', str(int(self.CSS_MARGIN_BASE * page / len(self.loaded[file]['pages'])))), content_type='text/html')
             case self.ARCHIVE_TYPE:
                 self.loadArchiveImage(file, self.loaded[file]['pages'][page])
                 content = '<img src="/asset?file={}&path={}">'.format(quote(file), quote(self.loaded[file]['pages'][page]))
-        footer = self.generateHeaderFooter(file, page, len(self.loaded[file]['pages']))
-        
-        return web.Response(text=self.BASE_HTML.replace('BODY', footer + '<div class="epub_content">' + content + '</div>' + footer), content_type='text/html')
+                return web.Response(text=self.BASE_HTML.replace('BODY', footer + '<div class="epub_content">' + content + '</div>').replace('MARGIN', str(int(self.CSS_MARGIN_BASE * page / len(self.loaded[file]['pages'])))), content_type='text/html')
 
     async def asset(self, request):
         file = request.rel_url.query.get('file', None)
